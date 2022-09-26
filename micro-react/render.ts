@@ -16,4 +16,23 @@ function render(element,container:Element) {
     container.append(dom)
 }
 
+let nextUnitOfWork:any = null;
+//调度函数
+function workLoop(deadLine){
+    //是否退出
+    let shouldYield = false;
+    while (nextUnitOfWork&&!shouldYield){
+        //做渲染工作
+       nextUnitOfWork= performUnitOfWork(nextUnitOfWork);
+       //询问是否还有时间
+       shouldYield=deadLine.timeRemaining()<1
+    }
+    requestIdleCallback(workLoop)
+}
+//第一次请求
+requestIdleCallback(workLoop)
+
+function performUnitOfWork(work){
+
+}
 export default render
