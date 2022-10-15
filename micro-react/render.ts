@@ -12,7 +12,7 @@ function createDOM(fiber) {
     //赋予节点属性
     .forEach((key) => (dom[key] = fiber.props[key]));
   //递归child
-  fiber.props.children.forEach((child) => render(child, dom));
+  // fiber.props.children.forEach((child) => {render(child, dom)});
   return dom;
 }
 
@@ -27,7 +27,7 @@ function render(element, container: Element) {
     parent: null,
   };
   //最佳元素到container节点
-//   container.append(dom);
+  //   container.append(dom);
 }
 
 let nextUnitOfWork: any = null;
@@ -51,13 +51,13 @@ function performUnitOfWork(fiber) {
   if (!fiber.dom) {
     fiber.dom = createDOM(fiber);
   }
-  //追加到父节点
+  //渲染dom
   if (fiber.parent) {
     fiber.parent.dom.append(fiber.dom);
   }
   //给children创建新fiber
   const elements = fiber.props.children;
-  let preSibling:any = null;
+  let prevSibling: any = null;
   //构建fiber的联系
   for (let i = 0; i < elements.length; i++) {
     const newFiber = {
@@ -65,27 +65,27 @@ function performUnitOfWork(fiber) {
       props: elements[i].props,
       parent: fiber,
       dom: null,
-      children: null,
+      child: null,
       sibling: null,
     };
-    if(i===0){
-        //第一个儿子
-        fiber.child=newFiber
-    }else{
-        //儿子的兄弟
-        preSibling.sibling=newFiber
+    if (i === 0) {
+      //第一个儿子
+      fiber.child = newFiber;
+    } else {
+      //儿子的兄弟
+      prevSibling.sibling = newFiber;
     }
-    preSibling=newFiber
+    prevSibling = newFiber;
   }
-  if(fiber.child){
-    return fiber.child
+  if (fiber.child) {
+    return fiber.child;
   }
-  let nextFiber =fiber
-  while(nextFiber){
-    if(nextFiber.sibiling){
-        return nextFiber.sibiling
+  let nextFiber = fiber;
+  while (nextFiber) {
+    if (nextFiber.sibling) {
+      return nextFiber.sibling;
     }
-    nextFiber=nextFiber.parent
+    nextFiber = nextFiber.parent;
   }
 }
 export default render;

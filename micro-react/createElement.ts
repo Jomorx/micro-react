@@ -1,5 +1,4 @@
 function createElement(type:string,props:Record<string,string>,...children:any[]){
-    console.log(children);
     
     return  {
         type,
