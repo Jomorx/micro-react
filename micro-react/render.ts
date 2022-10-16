@@ -15,22 +15,35 @@ function createDOM(fiber) {
   // fiber.props.children.forEach((child) => {render(child, dom)});
   return dom;
 }
-
+//commit阶段
+function commitRoot() {
+  commitWork(wipRoot.child);
+  wipRoot = null;
+}
+function commitWork(fiber) {
+  if(!fiber) return ;
+  const domParent =fiber.parent.dom
+  domParent.appendChild(fiber.dom)
+  commitWork(fiber.child)
+  commitWork(fiber.sibling)
+}
 function render(element, container: Element) {
-  nextUnitOfWork = {
+  wipRoot = {
     dom: container,
     props: {
       children: [element],
     },
-    sibiling: null,
+    sibling: null,
     child: null,
     parent: null,
   };
+  nextUnitOfWork = wipRoot;
   //最佳元素到container节点
   //   container.append(dom);
 }
 
 let nextUnitOfWork: any = null;
+let wipRoot: any = null;
 //调度函数
 function workLoop(deadLine) {
   //是否退出
@@ -40,6 +53,9 @@ function workLoop(deadLine) {
     nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
     //询问是否还有时间
     shouldYield = deadLine.timeRemaining() < 1;
+  }
+  if (!nextUnitOfWork && wipRoot) {
+    commitRoot();
   }
   requestIdleCallback(workLoop);
 }
@@ -51,10 +67,10 @@ function performUnitOfWork(fiber) {
   if (!fiber.dom) {
     fiber.dom = createDOM(fiber);
   }
-  //渲染dom
-  if (fiber.parent) {
-    fiber.parent.dom.append(fiber.dom);
-  }
+  //渲染dom 
+  // if (fiber.parent) {
+  //   fiber.parent.dom.append(fiber.dom);
+  // }
   //给children创建新fiber
   const elements = fiber.props.children;
   let prevSibling: any = null;
