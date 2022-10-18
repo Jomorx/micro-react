@@ -1,4 +1,4 @@
-function createElement(type:string,props:Record<string,string>,...children:any[]){
+function createElement(type:string,props:Record<string,string|Function>,...children:any[]){
     
     return  {
         type,
