@@ -1,16 +1,25 @@
-import {render,createElement} from '../micro-react'
+import { render, createElement } from "../micro-react";
 
-const root = document.querySelector("#root")!
-const handleInput = (e)=>{
-  renderer(e.target.value)
-}
-  const renderer = (value)=>{
-      const element = createElement("div",{},
-      createElement("input",{onInput:handleInput},null),
-      createElement("h1",{},value),
-      )
-      render(element,root)
-  }
-
-renderer("")
-export {}
+const root = document.querySelector("#root")!;
+const App = (props) => {
+  return createElement(
+    "div",
+    {},
+    createElement(
+      "h1",
+      {
+        onClick: () => {
+          console.log(123);
+        },
+      },
+      "hi",
+      createElement(Home,{name:123})
+    )
+  );
+};
+const Home = ({name}) => {
+  return createElement("h2", {}, name);
+};
+const element = createElement(App, { name: "kervin" });
+render(element, root);
+export {};

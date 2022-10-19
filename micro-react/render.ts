@@ -1,3 +1,8 @@
+/**
+ * 创建dom元素
+ * @param fiber 需要创建元素的fiber节点
+ * @returns 创建出来的dom元素
+ */
 function createDOM(fiber) {
   //创建元素
   const dom =
@@ -11,8 +16,10 @@ function createDOM(fiber) {
     .filter((key) => key !== "children")
     //赋予节点属性
     .forEach((key) => {
-      if (typeof fiber.props[key] === "function") {
-        dom[key.toLowerCase()] = fiber.props[key];
+      if (key.startsWith("on")) {
+        // dom[key.toLowerCase()] = fiber.props[key];
+        
+        dom.addEventListener(key.substring(2).toLowerCase(), fiber.props[key]);
       } else {
         dom[key] = fiber.props[key];
       }
@@ -23,21 +30,34 @@ function createDOM(fiber) {
 
   return dom;
 }
-//commit阶段
+/**
+ * commit 阶段渲染dom
+ */
 function commitRoot() {
   deletion.forEach(commitWork);
   currentRoot = wipRoot;
   commitWork(wipRoot.child);
   wipRoot = null;
 }
-//递归commit
+/**
+ * 递归commit 渲染dom元素
+ * @param fiber 需要渲染的fiber节点
+ * @returns 
+ */
 function commitWork(fiber) {
   if (!fiber) return;
-  const parentDom = fiber.parent.dom;
+  //函数组件没有dom 需要跳过函数组件绑到fn的上面的dom
+  let domParentFiber = fiber.parent
+  while(!domParentFiber.dom){
+    //向上查找
+    domParentFiber=domParentFiber.parent
+  }
+  const parentDom=domParentFiber.dom
   if (fiber.effectTag === "PLACEMENT" && fiber.dom) {
     parentDom.appendChild(fiber.dom);
   } else if (fiber.effectTag === "DELETION" && fiber.dom) {
-    parentDom.removeChild(fiber.dom);
+    // parentDom.removeChild(fiber.dom);
+    commitDeletion(fiber,parentDom)
   } else if (fiber.effectTag === "UPDATE" && fiber.dom) {
     updateDom(fiber.dom, fiber.alternate.props, fiber.props);
   }
@@ -62,7 +82,6 @@ function updateDom(dom: HTMLElement, prevProps, nextProps) {
     .filter((key) => prevProps[key] !== nextProps[key])
     .forEach((key) => {
       const eventType = key.toLowerCase().substring(2);
-      console.log(eventType);
       dom.addEventListener(eventType, nextProps[key]);
     });
 
@@ -85,7 +104,23 @@ function updateDom(dom: HTMLElement, prevProps, nextProps) {
       dom[key] = nextProps[key];
     });
 }
-//发出第一个fiber
+/**
+ * 
+ * @param fiber 需要删除的dom
+ * @param domParent 删除的dom的parent
+ */
+function commitDeletion(fiber,domParent){
+  if(fiber.dom){
+    domParent.removeChild(fiber.dom)
+  }else{
+    commitDeletion(fiber.child,domParent)
+  }
+}
+/**
+ * 
+ * @param element 需要渲染的element对象
+ * @param container 挂载的root容器
+ */
 function render(element, container: Element) {
   wipRoot = {
     dom: container,
@@ -128,19 +163,19 @@ function workLoop(deadLine) {
 }
 //第一次请求
 requestIdleCallback(workLoop);
-
+/**
+ *  执行的每一次最小单元
+ * @param fiber fiber节点 
+ */
 function performUnitOfWork(fiber) {
-  //创建dom元素
-  if (!fiber.dom) {
-    fiber.dom = createDOM(fiber);
+
+  const isFunctionComponent=fiber.type instanceof Function
+  if(isFunctionComponent){
+      updateFunctionComponent(fiber)
+  }else{
+    updateHostComponent(fiber)
   }
-  //渲染dom
-  // if (fiber.parent) {
-  //   fiber.parent.dom.append(fiber.dom);
-  // }
-  //给children创建新fiber
-  const elements = fiber.props.children;
-  reconcileChildren(fiber, elements);
+
 
   if (fiber.child) {
     return fiber.child;
@@ -153,7 +188,27 @@ function performUnitOfWork(fiber) {
     nextFiber = nextFiber.parent;
   }
 }
-//diff
+
+
+//处理非函数试组件
+const updateHostComponent=(fiber)=>{
+  //创建dom元素
+  if (!fiber.dom) {
+    fiber.dom = createDOM(fiber);
+  }
+  const elements = fiber.props.children;
+  reconcileChildren(fiber, elements);
+}
+
+const updateFunctionComponent=(fiber)=>{
+  const children =[fiber.type(fiber.props)]
+  reconcileChildren(fiber,children)
+}
+/**
+ *  diff算法
+ * @param wipFiber 当前执行的fiber
+ * @param elements 需要渲染的elements对象
+ */
 function reconcileChildren(wipFiber, elements) {
   let index = 0;
   let oldFiber = wipFiber.alternate && wipFiber.alternate.child;
@@ -163,6 +218,7 @@ function reconcileChildren(wipFiber, elements) {
     //如果type相同，那么只需要更新props
     const sameType = element && oldFiber && element.type === oldFiber.type;
     let newFiber: any = null;
+    // 更新type相同
     if (sameType) {
       newFiber = {
         type: oldFiber.type,
