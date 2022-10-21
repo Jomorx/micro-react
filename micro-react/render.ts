@@ -18,7 +18,7 @@ function createDOM(fiber) {
     .forEach((key) => {
       if (key.startsWith("on")) {
         // dom[key.toLowerCase()] = fiber.props[key];
-        
+
         dom.addEventListener(key.substring(2).toLowerCase(), fiber.props[key]);
       } else {
         dom[key] = fiber.props[key];
@@ -42,22 +42,23 @@ function commitRoot() {
 /**
  * 递归commit 渲染dom元素
  * @param fiber 需要渲染的fiber节点
- * @returns 
+ * @returns
  */
 function commitWork(fiber) {
   if (!fiber) return;
   //函数组件没有dom 需要跳过函数组件绑到fn的上面的dom
-  let domParentFiber = fiber.parent
-  while(!domParentFiber.dom){
+  let domParentFiber = fiber.parent;
+  while (!domParentFiber.dom) {
     //向上查找
-    domParentFiber=domParentFiber.parent
+    domParentFiber = domParentFiber.parent;
   }
-  const parentDom=domParentFiber.dom
+  const parentDom = domParentFiber.dom;
+  //新增节点
   if (fiber.effectTag === "PLACEMENT" && fiber.dom) {
     parentDom.appendChild(fiber.dom);
   } else if (fiber.effectTag === "DELETION" && fiber.dom) {
     // parentDom.removeChild(fiber.dom);
-    commitDeletion(fiber,parentDom)
+    commitDeletion(fiber, parentDom);
   } else if (fiber.effectTag === "UPDATE" && fiber.dom) {
     updateDom(fiber.dom, fiber.alternate.props, fiber.props);
   }
@@ -105,19 +106,19 @@ function updateDom(dom: HTMLElement, prevProps, nextProps) {
     });
 }
 /**
- * 
+ *
  * @param fiber 需要删除的dom
  * @param domParent 删除的dom的parent
  */
-function commitDeletion(fiber,domParent){
-  if(fiber.dom){
-    domParent.removeChild(fiber.dom)
-  }else{
-    commitDeletion(fiber.child,domParent)
+function commitDeletion(fiber, domParent) {
+  if (fiber.dom) {
+    domParent.removeChild(fiber.dom);
+  } else {
+    commitDeletion(fiber.child, domParent);
   }
 }
 /**
- * 
+ *
  * @param element 需要渲染的element对象
  * @param container 挂载的root容器
  */
@@ -143,7 +144,7 @@ let nextUnitOfWork: any = null;
 // 正在rootFiber 便于commit阶段时提交
 let wipRoot: any = null;
 //上一次fiber的root节点
-let currentRoot = null;
+let currentRoot: any = null;
 //需要删除的数组的集合
 let deletion: any = null;
 //调度函数
@@ -165,17 +166,15 @@ function workLoop(deadLine) {
 requestIdleCallback(workLoop);
 /**
  *  执行的每一次最小单元
- * @param fiber fiber节点 
+ * @param fiber fiber节点
  */
 function performUnitOfWork(fiber) {
-
-  const isFunctionComponent=fiber.type instanceof Function
-  if(isFunctionComponent){
-      updateFunctionComponent(fiber)
-  }else{
-    updateHostComponent(fiber)
+  const isFunctionComponent = fiber.type instanceof Function;
+  if (isFunctionComponent) {
+    updateFunctionComponent(fiber);
+  } else {
+    updateHostComponent(fiber);
   }
-
 
   if (fiber.child) {
     return fiber.child;
@@ -189,20 +188,53 @@ function performUnitOfWork(fiber) {
   }
 }
 
-
 //处理非函数试组件
-const updateHostComponent=(fiber)=>{
+const updateHostComponent = (fiber) => {
   //创建dom元素
   if (!fiber.dom) {
     fiber.dom = createDOM(fiber);
   }
   const elements = fiber.props.children;
   reconcileChildren(fiber, elements);
-}
+};
+//记住上一次的fiber
+let wipFiber: any = null;
+let hookIndex = 0;
+const updateFunctionComponent = (fiber) => {
+  wipFiber = fiber;
+  hookIndex = 0;
+  wipFiber.hooks = [];
+  const children = [fiber.type(fiber.props)];
+  reconcileChildren(fiber, children);
+};
 
-const updateFunctionComponent=(fiber)=>{
-  const children =[fiber.type(fiber.props)]
-  reconcileChildren(fiber,children)
+export function useState(initial: any) {
+  const oldHook =
+    wipFiber.alternate &&
+    wipFiber.alternate.hooks &&
+    wipFiber.alternate.hooks[hookIndex];
+  const hook: { queue: any[]; state: any } = {
+    state: oldHook ? oldHook.state : initial,
+    queue: [],
+  };
+  const actions = oldHook ? oldHook.queue : [];
+  actions.forEach((action) => {
+    hook.state = action(hook.state);
+  });
+
+  const setState = (action) => {
+    hook.queue.push(action);
+    wipRoot = {
+      dom: currentRoot.dom,
+      props: currentRoot.props,
+      alternate: currentRoot,
+    };
+    nextUnitOfWork = wipRoot;
+    deletion = [];
+  };
+  wipFiber.hooks.push(hook);
+  hookIndex++;
+  return [hook.state, setState];
 }
 /**
  *  diff算法
