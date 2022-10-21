@@ -5,7 +5,7 @@
  */
 function createDOM(fiber) {
   //创建元素
-  const dom =
+  const dom: HTMLElement =
     fiber.type === "TEXT_ELEMENT"
       ? //如果是text类型
         document.createTextNode("")
@@ -20,6 +20,9 @@ function createDOM(fiber) {
         // dom[key.toLowerCase()] = fiber.props[key];
 
         dom.addEventListener(key.substring(2).toLowerCase(), fiber.props[key]);
+      } else if (key === "style") {
+        // @ts-ignore
+        dom[key] = Object.keys(fiber.props[key]).map(item=>`${item}:${fiber.props[key][item]}`).join(";");
       } else {
         dom[key] = fiber.props[key];
       }
